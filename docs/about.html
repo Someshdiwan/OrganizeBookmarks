@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Dynamic Bookmark Dropdown</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f5f5f5;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .dropdown {
+            background-color: #fff;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            width: 300px;
+            max-height: 400px;
+            overflow-y: auto;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+            margin-bottom: 20px;
+        }
+        .dropdown-header {
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+            font-size: 16px;
+            font-weight: bold;
+            background-color: #fafafa;
+        }
+        .list-item {
+            display: flex;
+            align-items: center;
+            padding: 8px 10px;
+            border-bottom: 1px solid #eee;
+            position: relative;
+            transition: background-color 0.2s;
+        }
+        .list-item:hover {
+            background-color: #f9f9f9;
+        }
+        .icon {
+            width: 20px;
+            height: 20px;
+            margin-right: 10px;
+            flex-shrink: 0;
+            text-align: center;
+        }
+        .icon.checkmark::before {
+            content: "✔";
+            font-size: 16px;
+            color: green;
+        }
+        .icon.lock::before {
+            content: "🔒";
+            font-size: 16px;
+        }
+        .category-name {
+            flex-grow: 1;
+            font-size: 14px;
+            white-space: normal;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+        .remove-btn {
+            background: transparent;
+            border: none;
+            color: red;
+            font-size: 16px;
+            cursor: pointer;
+            display: none;
+        }
+        .list-item:hover .remove-btn {
+            display: block;
+        }
+        .create-btn {
+            text-align: center;
+            padding: 10px;
+            background-color: #e8e8e8;
+            cursor: pointer;
+            border-top: 1px solid #ccc;
+            transition: background-color 0.2s;
+        }
+        .create-btn:hover {
+            background-color: #d8d8d8;
+        }
+        .sub-item {
+            padding-left: 30px;
+        }
+        .add-sub-item {
+            padding: 8px 30px;
+            font-style: italic;
+            color: #666;
+            cursor: pointer;
+        }
+        .add-sub-item:hover {
+            background-color: #f0f0f0;
+        }
+        .sublists {
+            display: none;
+        }
+        footer {
+            font-size: 14px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+<div class="dropdown" id="dropdown">
+    <div class="dropdown-header">Bookmark Lists</div>
+    <div id="list-container"></div>
+    <div class="create-btn" id="create-btn">Create new list</div>
+</div>
+<footer>Created by Somesh Diwan. This is a Dummy Model Just Showing/Checking Functionality of Bookmark.</footer>
+
+<script>
+    let categories = [
+        { id: 1, name: 'Reading list', locked: true, sublists: [] },
+        { id: 2, name: 'CodeChef Pythons Bookmarked', locked: false, sublists: [
+                { id: 21, name: 'Python Basics', locked: false },
+                { id: 22, name: 'Python Advanced', locked: true }
+            ] },
+        { id: 3, name: 'CodeChef C++', locked: false, sublists: [] },
+        { id: 4, name: 'CodeChef JAVA', locked: true, sublists: [] },
+        { id: 5, name: 'CodeChef C', locked: false, sublists: [] },
+        { id: 6, name: 'Long description list', locked: false, sublists: [] }
+    ];
+
+    function renderList() {
+        const container = document.getElementById('list-container');
+        container.innerHTML = '';
+
+        categories.forEach(mainCat => {
+            // Main list container
+            const mainDiv = document.createElement('div');
+            mainDiv.className = 'main-list';
+            mainDiv.dataset.id = mainCat.id;
+
+            // Main list item
+            const mainItem = document.createElement('div');
+            mainItem.className = 'list-item';
+            mainItem.appendChild(createIcon('checkmark'));
+            mainItem.appendChild(createNameDiv(mainCat.name));
+
+            if (mainCat.locked) {
+                mainItem.appendChild(createIcon('lock'));
+            } else {
+                mainItem.appendChild(createRemoveButton(() => removeCategory(mainCat.id)));
+            }
+
+            mainItem.addEventListener('click', () => toggleSublists(mainCat.id));
+            mainDiv.appendChild(mainItem);
+
+            // Sublists container
+            const sublistsDiv = document.createElement('div');
+            sublistsDiv.className = 'sublists';
+
+            mainCat.sublists.forEach(subCat => {
+                const subItem = document.createElement('div');
+                subItem.className = 'list-item sub-item';
+                subItem.appendChild(createIcon('checkmark'));
+                subItem.appendChild(createNameDiv(subCat.name));
+
+                if (subCat.locked) {
+                    subItem.appendChild(createIcon('lock'));
+                } else if (!mainCat.locked) {
+                    subItem.appendChild(createRemoveButton(() => removeSubCategory(mainCat.id, subCat.id)));
+                }
+
+                sublistsDiv.appendChild(subItem);
+            });
+
+            // Add sub-list option
+            if (!mainCat.locked && mainCat.sublists.length < 5) {
+                const addSubItem = document.createElement('div');
+                addSubItem.className = 'add-sub-item';
+                addSubItem.textContent = 'Add sub-list';
+                addSubItem.addEventListener('click', () => addSubCategory(mainCat.id));
+                sublistsDiv.appendChild(addSubItem);
+            }
+
+            mainDiv.appendChild(sublistsDiv);
+            container.appendChild(mainDiv);
+        });
+    }
+
+    function createIcon(type) {
+        const icon = document.createElement('div');
+        icon.className = `icon ${type}`;
+        return icon;
+    }
+
+    function createNameDiv(name) {
+        const nameDiv = document.createElement('div');
+        nameDiv.className = 'category-name';
+        nameDiv.textContent = name;
+        return nameDiv;
+    }
+
+    function createRemoveButton(onClick) {
+        const removeBtn = document.createElement('button');
+        removeBtn.className = 'remove-btn';
+        removeBtn.textContent = '×';
+        removeBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            onClick();
+        });
+        return removeBtn;
+    }
+
+    function toggleSublists(mainId) {
+        const sublistsDiv = document.querySelector(`.main-list[data-id="${mainId}"] .sublists`);
+        sublistsDiv.style.display = sublistsDiv.style.display === 'none' ? 'block' : 'none';
+    }
+
+    function removeCategory(id) {
+        categories = categories.filter(cat => cat.id !== id);
+        renderList();
+    }
+
+    function removeSubCategory(mainId, subId) {
+        const mainCat = categories.find(cat => cat.id === mainId);
+        if (mainCat) {
+            mainCat.sublists = mainCat.sublists.filter(sub => sub.id !== subId);
+            renderList();
+        }
+    }
+
+    function addSubCategory(mainId) {
+        const name = prompt('Enter new sub-list name:');
+        if (name && name.trim()) {
+            const mainCat = categories.find(cat => cat.id === mainId);
+            if (mainCat && mainCat.sublists.length < 5) {
+                mainCat.sublists.push({
+                    id: Date.now(),
+                    name: name.trim(),
+                    locked: false
+                });
+                renderList();
+            }
+        }
+    }
+
+    document.getElementById('create-btn').addEventListener('click', () => {
+        const name = prompt('Enter new list name:');
+        if (name && name.trim()) {
+            categories.push({
+                id: Date.now(),
+                name: name.trim(),
+                locked: false,
+                sublists: []
+            });
+            renderList();
+        }
+    });
+
+    renderList();
+</script>
+</body>
+</html>
